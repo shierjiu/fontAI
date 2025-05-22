@@ -1,0 +1,293 @@
+<template>
+  <div class="dataset-container">
+     <div class="button-group">
+        <el-button class="headerButton" type="primary" plain @click="openEvaluationDialog">开始评测</el-button>
+      </div>
+
+     <div class="search-form">
+      <el-form :inline="true" :model="formInline" class="demo-form-inline">
+        <el-form-item label="名称">
+          <el-input v-model="formInline.name" placeholder="请输入名称" clearable style="width: 180px;"/>
+        </el-form-item>
+        <el-form-item label="数据集">
+          <el-select v-model="formInline.dataset" placeholder="请选择数据集" clearable style="width: 180px;">
+            <el-option v-for="item in datasetList" :key="item.id" :label="item.name" :value="item.id"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="智能体">
+          <el-select v-model="formInline.agent" placeholder="请选择智能体" clearable style="width: 180px;">
+            <el-option v-for="item in agentList" :key="item.id" :label="item.name" :value="item.id"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="评测对象">
+          <el-select v-model="formInline.entity" placeholder="请选择评测对象" clearable style="width: 180px;">
+            <el-option v-for="item in entityList" :key="item.id" :label="item.name" :value="item.id"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <el-table :data="modelList" border style="width: 100%">
+    <el-table-column prop="name" label="名称" width="250" class-name="ellipsis-cell">
+      <template #default="scope">
+        <el-input v-if="scope.row.editing" v-model="scope.row.editData.name" placeholder="请输入"/>
+        <span v-else class="ellipsis-cell" :title="scope.row.name">{{ scope.row.name }}</span>
+      </template>
+    </el-table-column>
+    <el-table-column prop="dataset" label="数据集" width="250" class-name="ellipsis-cell">
+      <template #default="scope">
+        <el-input v-if="scope.row.editing" v-model="scope.row.editData.dataset" placeholder="请输入"/>
+        <span v-else class="ellipsis-cell" :title="scope.row.dataset">{{ scope.row.dataset }}</span>
+      </template>
+    </el-table-column>
+    <el-table-column prop="agent" label="智能体" width="250" class-name="ellipsis-cell">
+      <template #default="scope">
+        <el-input v-if="scope.row.editing" v-model="scope.row.editData.agent" placeholder="请输入"/>
+        <span v-else class="ellipsis-cell" :title="scope.row.agent">{{ scope.row.agent }}</span>
+      </template>
+    </el-table-column>
+    <el-table-column prop="entity" label="评测对象" width="250" class-name="ellipsis-cell">
+      <template #default="scope">
+        <el-input v-if="scope.row.editing" v-model="scope.row.editData.entity" placeholder="请输入"/>
+        <span v-else class="ellipsis-cell" :title="scope.row.entity">{{ scope.row.entity }}</span>
+      </template>
+    </el-table-column>
+    <el-table-column prop="createTime" label="评测时间" width="250" class-name="ellipsis-cell">
+      <template #default="scope">
+        <el-input v-if="scope.row.editing" v-model="scope.row.editData.createTime" placeholder="请输入"/>
+        <span v-else class="ellipsis-cell" :title="scope.row.createTime">{{ scope.row.createTime }}</span>
+      </template>
+    </el-table-column>
+    <el-table-column label="操作" width="200" fixed="right">
+      <template #default="scope">
+          <el-button link type="primary" size="small" @click="EvaluationObjectEditEnable(scope.row)">详情数据</el-button>   
+      </template>
+    </el-table-column>
+  </el-table>
+    <!-- #选择评测对象 -->
+    <el-dialog v-model="evalDialogVisible" title="评测对象选择" width="20%">
+      <el-form :model="evalForm">
+        <el-form-item label="智能体">
+          <el-select v-model="evalForm.agent_id" multiple placeholder="请选择智能体">
+            <el-option v-for="a in agentList" :key="a.id" :label="a.name" :value="a.id"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="数据集">
+          <el-select v-model="evalForm.dataset_id">
+            <el-option v-for="d in datasetList" :key="d.id" :label="d.name" :value="d.id"/>
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="evalDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="startEvaluation">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-table :data="detailList">
+      <el-table-column v-for="col in tableColumns" :key="col" :prop="`result.${col}`" :label="col">
+        <template #default="scope">
+          {{ scope.row.result[col] }}
+        </template>
+      </el-table-column>
+    </el-table>
+
+  </div>
+</template>
+
+<script setup>
+import { ElNotification, ElMessage } from 'element-plus';
+import { ref, computed, onMounted } from 'vue';
+// import { api } from '../../api';
+import * as AiGenerateEvaluation from "@/api/AiEvaluation"
+import * as AiServer from "@/api/AiServer"
+import dayjs from 'dayjs'
+import AiEvaluationTarget from './AiEvaluationTarget.vue';
+
+
+
+const evalDialogVisible = ref(false)
+const evalForm = ref({ agent_id: [], entity_id: '', dataset_id: '' })
+const isEvaluating = ref(false)
+
+const detailList = ref([]) // 详情数据
+const tableColumns = computed(() => {
+  if (!detailList.value.length) return []
+  // 取所有 result 的 key 并去重
+  const keys = new Set()
+  detailList.value.forEach(item => {
+    Object.keys(item.result || {}).forEach(k => keys.add(k))
+  })
+  return Array.from(keys)
+})
+
+const recordList = ref([]) // 后端返回的原始数据
+// 临时写：
+recordList.value = [
+  { id: 1, entity: 7, dataset: 3, agent: 2, create_time: '2025-05-16 10:00:00', result: {} }
+]
+
+const agentList = ref([])  // 智能体列表
+const datasetList = ref([])
+const datasetMap = ref({})
+const entityList = ref([]) // 评测对象列表
+
+const agentMap = computed(() => Object.fromEntries(agentList.value.map(a => [a.id, a.name])))
+
+const formatRecordList = computed(() => {
+  return recordList.value.map(item => {
+    const entityName = entityMap.value[item.entity] || item.entity
+    const datasetName = getDatasetName(item.dataset)
+    const agentName = agentMap.value[item.agent] || item.agent
+    const createTime = dayjs(item.create_time).format('YYYYMMDDHHmm')
+    return {
+      ...item,
+      name: `${entityName}-${datasetName}-${createTime}`,
+      datasetName,
+      agentName,
+      entityName,
+      createTime: dayjs(item.create_time).format('YYYY-MM-DD')
+    }
+  })
+})
+const modelList = computed(() => formatRecordList.value)
+
+const formInline = ref({
+  name: '',
+  dataset: '',
+  agent: '',
+  entity: '',
+})
+
+const pageSize = ref(100) // 或更大，确保能获取全部数据
+const pageNum = ref(1)
+const pageTotal = ref(0)
+
+
+
+// 获取数据集
+
+async function getDatasetList() {
+  const res = await AiGenerateEvaluation.postDatasetItemList({ pageEnable: true, pageSize: 100, pageNum: 1 })
+  datasetList.value = res.data.data.data.map((item, idx) => ({
+    id: item.id,
+    name: item.name || item.dataset_name || item.title
+  }))
+  datasetMap.value = Object.fromEntries(datasetList.value.map(item => [String(item.id), item.name]))
+}
+
+function getDatasetName(datasetId) {
+  if (!datasetId) return ''
+  return (
+    datasetMap.value[String(datasetId)] ||
+    (datasetList.value.find(item => String(item.id) === String(datasetId))?.name ?? '')
+  )
+}
+
+// 获取评测对象的方法
+async function getEntityList() {
+  // const data = {pageEnable: true, pageSize: 100, pageNum: 1}
+  // const res = await AiGenerateEvaluation.postEntityList(data)
+  // entityList.value = res.data.data.data
+  const res = await AiGenerateEvaluation.postEvaluationObjectList({ pageEnable: true, pageSize: 100, pageNum: 1 })
+  entityList.value = res.data.data.data
+}
+
+// 获取智能体的方法
+async function getAgentList() {
+  const res = await AiServer.postAgentList({ pageEnable: true, pageSize: 100, pageNum: 1 })
+  agentList.value = res.data.data.data
+}
+
+
+async function startEvaluation() {
+  isEvaluating.value = true
+  try {
+    // 假设 evalForm.value.agent_id 是 {0: 2, 1: 3} 这种对象
+    const agentIdObj = evalForm.value.agent_id;
+    // 取出所有 value，组成数组
+    const agentIds = Object.values(agentIdObj);
+    // 单个数据集id
+    const datasetId = evalForm.value.dataset_id;
+
+    // 打印确认
+    console.log('agentIds:', agentIds, Array.isArray(agentIds) ? 'array' : typeof agentIds);
+    console.log('datasetId:', datasetId, typeof datasetId);
+
+    // 组装参数
+    const params = {
+      agent_id: agentIds,
+      dataset_id: datasetId
+    };
+
+    // 调用后端接口
+    const res = await AiGenerateEvaluation.generateEvaluationRecord(params);
+
+    ElMessage.success('评测任务已提交，稍后可在历史记录中查看结果');
+    evalDialogVisible.value = false;
+    await getRecordList();
+  } catch (error) {
+    console.error('[startEvaluation] generateEvaluationRecord 异常:', error);
+    ElMessage.error('评测任务提交失败');
+  } finally {
+    isEvaluating.value = false;
+  }
+}
+const EvaluationObjectEditEnable = (row) => { console.log(row) }
+function openEvaluationDialog() {
+  evalDialogVisible.value = true
+}
+
+onMounted(() => {
+  getAgentList()
+  getEntityList()
+  getDatasetList()
+})
+
+
+</script>
+
+<style scoped>
+.dataset-container {
+  display: flex;
+  flex-direction: column; /* 让元素从上到下排列 */
+  gap: 20px;
+  padding: 20px;
+  height: 100%;
+}
+
+.search-form {
+  flex: 0 1 auto; /* 使搜索框部分自适应大小 */
+}
+
+.table-container {
+  width: 100%; /* 确保表格占满父容器的宽度 */
+}
+
+.custom-header {
+  font-weight: bold;
+  background: #fafbfc;
+  color: #333;
+  font-size: 15px;
+}
+.custom-cell {
+  text-align: left;
+  font-size: 14px;
+  color: #222;
+}
+.el-table th, .el-table td {
+  padding: 10px 8px;
+}
+.el-button--text {
+  color: #409EFF;
+  font-size: 14px;
+  padding: 0 6px;
+}
+.el-table .el-button--text:hover {
+  text-decoration: underline;
+}
+</style>

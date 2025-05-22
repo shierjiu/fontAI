@@ -1,0 +1,31 @@
+html {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+}
+
+#app {
+  height: 100%;
+}
+
+.el-drawer__header {
+  margin: 0;
+  padding: 0 20px 0 20px;
+  background-color: rgb(48,65,86);
+  color: white;
+}
+
+.el-drawer__body {
+  margin: 0;
+  padding: 10px 0;
+  overflow-y: auto;
+}
+
+.el-drawer__footer {
+  margin: 0;
+  padding: 10px;
+}
