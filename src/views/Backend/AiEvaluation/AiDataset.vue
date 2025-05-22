@@ -1295,6 +1295,7 @@ function excelImport() {
     ElMessage.warning('请先选中节点');
     return;
   }
+  console.log('测试')
   excelDrawerVisible.value = true
   multiFiles.value = []
   previewContent.value = ''
