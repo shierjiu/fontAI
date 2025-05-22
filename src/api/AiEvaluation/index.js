@@ -7,18 +7,18 @@ import {request} from '@/utils/request'
 
 // #导入文件
 export function EvaluationFileImport(data) {
-    return request.post("ai_evaluation/dataset/file/upload", data)
+    return request.post("ai_evaluation/file/upload", data)
 }
 
 // 一键生成
 export function OneclickUpdate(data) {
-    return request.post("ai_evaluation/dataset/evaluate", data)
+    return request.post("ai_evaluation/entity/server", data)
 }
 
 // 导入excel
 export function EvaluationExcelImport(payload) {
     return request.post(
-        "ai_evaluation/dataset/import",
+        "ai_evaluation/excel/import",
         payload,
         { headers: { "Content-Type": "application/json" } }
     );
@@ -30,15 +30,15 @@ export function EvaluationExcelImport(payload) {
 
 // tree为查询操作
 export function postDatasetTreeList(data) {
-    return request.post("ai_evaluation/dataset/tree", data)
+    return request.post("ai_evaluation/tree/server", data)
 }
 // 创建多个节点数
 export function postDatasetTreeInfo(data) {
-    return request.post("ai_evaluation/dataset/info", data)
+    return request.post("ai_evaluation/tree/info", data)
 }
 // 删除节点树
 export function deleteDatasetTreeInfo(datasetId) {
-    return request.delete("ai_evaluation/dataset/tree", { data: { dataset_id: datasetId } })
+    return request.delete("ai_evaluation/tree/server", { data: { dataset: datasetId } })
 }
 
 
@@ -47,15 +47,15 @@ export function deleteDatasetTreeInfo(datasetId) {
 
 // 评测数据集
 export function postDatasetItemList(data) {
-    return request.post("ai_evaluation/dataset/item/list", data)
+    return request.post("ai_evaluation/dataset/list", data)
 }
 
 export function postDatasetItemInfo(data) {
-    return request.post("ai_evaluation/dataset/item/info", data)
+    return request.post("ai_evaluation/dataset/info", data)
 }
 
 export function deleteDatasetItemInfo(params) {
-    return request.delete("ai_evaluation/dataset/item/info", params)
+    return request.delete("ai_evaluation/dataset/info", params)
 }
 
 
@@ -77,24 +77,24 @@ export function deleteFileUpdateInfo(params) {
 
 // 数据集标签
 export function postDatasetTagList(data) {
-    return request.post("ai_evaluation/dataset/tag/list", data)
+    return request.post("ai_evaluation/tag/list", data)
 }
 
 export function postDatasetTagInfo(data) {
-    return request.post("ai_evaluation/dataset/tag/info", data)
+    return request.post("ai_evaluation/tag/info", data)
 }
 
 export function deleteDatasetTagInfo(params) {
-    return request.delete("ai_evaluation/dataset/tag/info", params)
+    return request.delete("ai_evaluation/tag/info", params)
 }
 
 // 评估对象 
 export function postEvaluationObjectList(data) {
-    return request.post("ai_evaluation/evaluation/object/list", data)
+    return request.post("ai_evaluation/entity/list", data)
 }
 
 export function postEvaluationObjectInfo(data) {
-    return request.post("ai_evaluation/evaluation/object/info", data)
+    return request.post("ai_evaluation/entity/info", data)
 }
 
 // export function deleteEvaluationObjectInfo(params) {
@@ -102,7 +102,7 @@ export function postEvaluationObjectInfo(data) {
 // }
 
 export function deleteEvaluationObjectInfo(id) {
-    return request.delete("ai_evaluation/evaluation/object/info", { params: { id } })
+    return request.delete("ai_evaluation/entity/info", { params: { id } })
   }
 
 
@@ -119,19 +119,19 @@ export function generateEvaluationRecordResult(data) {
 
 // 评估历史
 export function postEvaluationHistoryList(data) {
-    return request.post("ai_evaluation/evaluation/history/list", data)
+    return request.post("ai_evaluation/history/list", data)
 }
 
 export function generateEvaluationRecord(data) {
-    return request.post("ai_evaluation/evaluation/history/list", data)
+    return request.post("ai_evaluation/history/list", data)
 }
 // 评估历史新增、修改方法
 export function postEvaluationHistoryInfo(data) {
-    return request.post("ai_evaluation/evaluation/history/info", data)
+    return request.post("ai_evaluation/history/info", data)
 }
 
 export function deleteEvaluationHistoryInfo(params) {
-    return request.delete("ai_evaluation/evaluation/history/info", params)
+    return request.delete("ai_evaluation/history/info", params)
 }
 
 // 评估历史详情-已改
@@ -150,14 +150,14 @@ export function deleteEvaluationHistoryDetailInfo(params) {
 //回显示节点文件名
 export function postDatasetItemFileList (data) {
   /*  data 形如：{ dataset_id: 1 }  */
-  return request.post('ai_evaluation/dataset/file/list', data)
+  return request.post('ai_evaluation/file/list', data)
 }
 
 
 //.zip文件下载
 export function downloadDatasetFile (params) {
   return request.get(
-    'ai_evaluation/dataset/file/download',
+    'ai_evaluation/file/download',
     { params, responseType: 'blob' }
   )
 }

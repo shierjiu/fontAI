@@ -2,8 +2,8 @@ import axios from "axios"
 import {ElNotification} from "element-plus"
 
 // const BASE_URL = "http://10.30.22.82:8000"
-const BASE_URL = "http://127.0.0.1:8000"
-// const BASE_URL = "http://192.168.186.41:8000"
+// const BASE_URL = "http://127.0.0.1:8000"
+const BASE_URL = "http://192.168.186.41:8000"
 
 
 

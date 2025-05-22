@@ -748,26 +748,6 @@ function getDatasetName(datasetId) {
 }
 
 
-
-
-// async function getDatasetItemList() {
-//   // 获取全部数据
-//   const res = await AiEvaluation.postDatasetItemList({ pageEnable: false })
-//   if (res.status === 200) {
-//     datasetList.value = res.data.data.data || []
-//     // 判断是否选中节点
-//     if (!selectedNode.value || !selectedNode.value.id) {
-//       // 未选中节点，不显示任何记录
-//       filteredList.value = []
-//     } else {
-//       // 选中节点，过滤
-//       filteredList.value = datasetList.value.filter(
-//         item => item.parent_id === selectedNode.value.id
-//       )
-//     }
-//   }
-// }
-
 async function getDatasetItemList() {
   const data = {
     pageEnable: true,
@@ -797,7 +777,8 @@ async function getDatasetItemList() {
         item => item.parent_id === selectedNode.value.id
       )
     }
-    console.log('【getDatasetItemList】最终赋值 datasetList:', datasetList.value)
+    //console.log('【getDatasetItemList】最终赋值 datasetList:', datasetList.value)
+    //console.log('【getDatasetItemList】最终赋值 filteredList:', filteredList.value)
     pageTotal.value = res.data.data.total
   } else {
     console.warn('【getDatasetItemList】接口未返回200:', res)
@@ -1036,7 +1017,7 @@ async function DatasetItemInfoSubmit(row) {
       dataset: datasetId,
     };
 
-    // ...其它校验...
+
     if (!data.question || !data.ground_truth) {
       ElNotification({
         message: '问题和标准答案不能为空',
@@ -1052,14 +1033,16 @@ async function DatasetItemInfoSubmit(row) {
       return
     }
 
-    console.log('Submitting data:', data)
+
     const res = await AiEvaluation.postDatasetItemInfo(data)
-    console.log('Submit response:', res)
+
     if (res.status === 200) {
       ElNotification({
         message: res.data.message || '提交成功',
         type: 'success',
       })
+      const newId = res.data.data.id
+      row.id = newId
       row.editing = false
       await getDatasetItemList()
       rawEditing.value = false
@@ -1388,7 +1371,7 @@ async function fileUpload() {
     return
   }
   try{
-    const res = await AiEvaluation.postDatasetItemFileList({ dataset_id: selectedNode.value.id })
+    const res = await AiEvaluation.postDatasetItemFileList({ dataset: selectedNode.value.id })
     console.log('文件列表:', res)
     fileNames.value = (Array.isArray(res.data) ? res.data : res.data?.data || []).map(item => item.name)
   }catch(e){
@@ -1416,7 +1399,7 @@ async function MultFileonSubmit () {
   if (fileDrawerVisible.value) {
     const formData = new FormData()
     formData.append('file', multiFiles.value[0].raw)
-    formData.append('dataset_id', selectedNode.value.id)
+    formData.append('dataset', selectedNode.value.id)
     try {
       const res = await AiEvaluation.EvaluationFileImport(formData)
       if (res.status === 200) {
@@ -1520,7 +1503,7 @@ async function fileExport () {
 }
 
   try {
-    const res = await downloadDatasetFile({ dataset_id: selectedNode.value.id })
+    const res = await downloadDatasetFile({ dataset: selectedNode.value.id })
 
     /* ---------- 文件名 ---------- */
     let filename = fileNames.value?.[0] || `dataset_${selectedNode.value.id}.zip`
@@ -1781,10 +1764,12 @@ async function refreshTable() {
 }
 // 单条更新答案
 async function UpdateDataItem(id) {
-  console.log('[UpdateDataItem] 传入id:', id)
-  // 1. 查找该条记录
+  const detail = parseInt(id, 10)
+    if (!Number.isInteger(detail)) {
+    ElMessage.error('更新失败：传入的 detail 不是有效数字')
+    return
+  }
   const item = datasetList.value.find(row => row.id === id)
-  console.log('[UpdateDataItem] 查找到的item:', item)
   if (!item) {
     ElMessage.error('未找到该条数据')
     return
@@ -1794,24 +1779,15 @@ async function UpdateDataItem(id) {
     ElMessage.warning('请先在上方 “评测对象” 下拉中选择一个对象');
     return;
   }
-
-  const dataset_id = item.dataset?.id || item.dataset || item.dataset_id
-  const entity_id = entityId.value;
-  const question = item.question
-
-  if (!dataset_id || !entity_id || !question) {
-    ElMessage.error('数据不完整，无法更新')
-    return
-  }
   try {
-    // 3. 调用 OneclickUpdate
-    const params = {       
-      detail: id,
-      entity: entityId.value 
+    // 2. 构造新的请求体
+    const payload = {
+      entity: entityId.value,
+      detail
     }
     //console.log('[UpdateDataItem] 调用 OneclickUpdate 参数:', params)
-    const res = await OneclickUpdate(params)
-    //console.log('[UpdateDataItem] OneclickUpdate 返回:', res)
+    const res = await OneclickUpdate(payload)
+
     if (res.status === 200 || res.data?.code === 'success'){
       ElMessage.success(res.data?.message || '单条更新成功！')
       await getDatasetItemList() // 刷新列表
