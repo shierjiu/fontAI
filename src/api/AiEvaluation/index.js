@@ -117,22 +117,27 @@ export function generateEvaluationRecordResult(data) {
     return request.post("ai_evaluation/record/server", data)
 }
 
-// 评估历史
+// 列表展示历史记录
 export function postEvaluationHistoryList(data) {
-    return request.post("ai_evaluation/history/list", data)
+    return request.post("ai_evaluation/record/list", data)
 }
 
+// 生成评估记录   
 export function generateEvaluationRecord(data) {
     return request.post("ai_evaluation/history/list", data)
 }
+
 // 评估历史新增、修改方法
 export function postEvaluationHistoryInfo(data) {
     return request.post("ai_evaluation/history/info", data)
 }
 
+
 export function deleteEvaluationHistoryInfo(params) {
     return request.delete("ai_evaluation/history/info", params)
 }
+
+
 
 // 评估历史详情-已改
 export function postEvaluationHistoryDetailList(data) {

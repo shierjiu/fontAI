@@ -31,7 +31,7 @@
       </el-form>
     </div>
 
-    <el-table :data="modelList" border style="width: 100%">
+    <el-table :data="recordList" border style="width: 100%">
     <el-table-column prop="name" label="名称" width="250" class-name="ellipsis-cell">
       <template #default="scope">
         <el-input v-if="scope.row.editing" v-model="scope.row.editData.name" placeholder="请输入"/>
@@ -56,10 +56,9 @@
         <span v-else class="ellipsis-cell" :title="scope.row.entity">{{ scope.row.entity }}</span>
       </template>
     </el-table-column>
-    <el-table-column prop="createTime" label="评测时间" width="250" class-name="ellipsis-cell">
+    <el-table-column prop="create_time" label="评测时间" width="250" class-name="ellipsis-cell">
       <template #default="scope">
-        <el-input v-if="scope.row.editing" v-model="scope.row.editData.createTime" placeholder="请输入"/>
-        <span v-else class="ellipsis-cell" :title="scope.row.createTime">{{ scope.row.createTime }}</span>
+        <span class="ellipsis-cell" :title="scope.row.create_time">{{ scope.row.create_time }}</span>
       </template>
     </el-table-column>
     <el-table-column label="操作" width="200" fixed="right">
@@ -87,14 +86,21 @@
         <el-button type="primary" @click="startEvaluation">确定</el-button>
       </template>
     </el-dialog>
-
-    <el-table :data="detailList">
-      <el-table-column v-for="col in tableColumns" :key="col" :prop="`result.${col}`" :label="col">
-        <template #default="scope">
-          {{ scope.row.result[col] }}
-        </template>
-      </el-table-column>
-    </el-table>
+    <!-- 评测结果 详情-->
+ 
+    <el-dialog v-model="detailDialogVisible" title="详情数据" width="80%">
+      <el-table :data="detailTableData">
+        <el-table-column prop="question" label="标准问题" />
+        <el-table-column prop="answer" label="标准答案" />
+        <el-table-column prop="contexts" label="标准上下文" />
+        <el-table-column prop="ground_truth" label="标准得分" />
+        <el-table-column prop="测试机器人" label="测试机器人得分" />
+        <el-table-column prop="对话机器人" label="对话机器人得分" />
+      </el-table>
+      <template #footer>
+        <el-button @click="detailDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
   </div>
 </template>
@@ -108,12 +114,9 @@ import * as AiServer from "@/api/AiServer"
 import dayjs from 'dayjs'
 import AiEvaluationTarget from './AiEvaluationTarget.vue';
 
-
-
 const evalDialogVisible = ref(false)
 const evalForm = ref({ agent_id: [], entity_id: '', dataset_id: '' })
 const isEvaluating = ref(false)
-
 const detailList = ref([]) // 详情数据
 const tableColumns = computed(() => {
   if (!detailList.value.length) return []
@@ -124,17 +127,13 @@ const tableColumns = computed(() => {
   })
   return Array.from(keys)
 })
-
 const recordList = ref([]) // 后端返回的原始数据
-// 临时写：
-recordList.value = [
-  { id: 1, entity: 7, dataset: 3, agent: 2, create_time: '2025-05-16 10:00:00', result: {} }
-]
-
 const agentList = ref([])  // 智能体列表
-const datasetList = ref([])
-const datasetMap = ref({})
+const datasetList = ref([])// 数据集列表
+const datasetMap = ref({})// 数据集映射
 const entityList = ref([]) // 评测对象列表
+const detailDialogVisible = ref(false)
+const detailData = ref({})
 
 const agentMap = computed(() => Object.fromEntries(agentList.value.map(a => [a.id, a.name])))
 
@@ -143,18 +142,18 @@ const formatRecordList = computed(() => {
     const entityName = entityMap.value[item.entity] || item.entity
     const datasetName = getDatasetName(item.dataset)
     const agentName = agentMap.value[item.agent] || item.agent
-    const createTime = dayjs(item.create_time).format('YYYYMMDDHHmm')
+    const createTime = dayjs(item.create_time).format('YYYY-MM-DD HH:mm:ss')
     return {
       ...item,
       name: `${entityName}-${datasetName}-${createTime}`,
       datasetName,
-      agentName,
-      entityName,
-      createTime: dayjs(item.create_time).format('YYYY-MM-DD')
+      agentName: Array.isArray(item.agent) ? item.agent.join('，') : item.agent || '',
+      entityName: item.entity || '',
+      createTime: dayjs(item.create_time).format('YYYY-MM-DD HH:mm:ss')
     }
   })
 })
-const modelList = computed(() => formatRecordList.value)
+
 
 const formInline = ref({
   name: '',
@@ -167,10 +166,23 @@ const pageSize = ref(100) // 或更大，确保能获取全部数据
 const pageNum = ref(1)
 const pageTotal = ref(0)
 
+const detailTableColumns = ref(['question', '测试机器人', '对话机器人'])
+const detailTableData = ref([])
 
+// 获取评估器历史记录
+async function getRecordList() {
+  const res = await AiGenerateEvaluation.postEvaluationHistoryList({ pageEnable: true, pageSize: 100, pageNum: 1 })
+  recordList.value = res.data.data.data
+  console.log('列表获得评估的记录:', recordList.value);
+}
 
-// 获取数据集
+// 获取评估器历史记录详情
+async function getRecordDetailList() {
+  const res = await AiGenerateEvaluation.postEvaluationHistoryDetailList({ record_id: recordList.value[0].id })
+  console.log('获得评估的记录详情:', res);
+}
 
+//获得数据集的映射
 async function getDatasetList() {
   const res = await AiGenerateEvaluation.postDatasetItemList({ pageEnable: true, pageSize: 100, pageNum: 1 })
   datasetList.value = res.data.data.data.map((item, idx) => ({
@@ -179,7 +191,7 @@ async function getDatasetList() {
   }))
   datasetMap.value = Object.fromEntries(datasetList.value.map(item => [String(item.id), item.name]))
 }
-
+// 获取评测对象的名称
 function getDatasetName(datasetId) {
   if (!datasetId) return ''
   return (
@@ -197,13 +209,15 @@ async function getEntityList() {
   entityList.value = res.data.data.data
 }
 
-// 获取智能体的方法
+// 获取智能体名称
 async function getAgentList() {
   const res = await AiServer.postAgentList({ pageEnable: true, pageSize: 100, pageNum: 1 })
   agentList.value = res.data.data.data
+  console
 }
 
 
+// 开始评测
 async function startEvaluation() {
   isEvaluating.value = true
   try {
@@ -213,20 +227,26 @@ async function startEvaluation() {
     const agentIds = Object.values(agentIdObj);
     // 单个数据集id
     const datasetId = evalForm.value.dataset_id;
+    +
 
     // 打印确认
-    console.log('agentIds:', agentIds, Array.isArray(agentIds) ? 'array' : typeof agentIds);
-    console.log('datasetId:', datasetId, typeof datasetId);
+    console.log('1-最后agent的值:', agentIds, Array.isArray(agentIds) ? 'array' : typeof agentIds);
+    console.log('1-最后datasetId的值:', datasetId, typeof datasetId);
 
     // 组装参数
     const params = {
-      agent_id: agentIds,
-      dataset_id: datasetId
+      agent: agentIds,
+      dataset: datasetId
     };
 
-    // 调用后端接口
-    const res = await AiGenerateEvaluation.generateEvaluationRecord(params);
-
+    // 调用后端接口,获得评估的记录
+    // const res = await AiGenerateEvaluation.postEvaluationHistoryList(JSON.stringify(params));
+    // const res = await AiGenerateEvaluation.generateEvaluationRecord(params)
+    // console.log('2-获得评估的记录:', res);
+    // 把返回的record_id传给generateEvaluationRecordResult 获得评估的记录详情
+    
+    const res = await AiGenerateEvaluation.generateEvaluationRecordResult(params)
+    console.log('3-获得评估的记录结果分数:', res);
     ElMessage.success('评测任务已提交，稍后可在历史记录中查看结果');
     evalDialogVisible.value = false;
     await getRecordList();
@@ -237,15 +257,46 @@ async function startEvaluation() {
     isEvaluating.value = false;
   }
 }
-const EvaluationObjectEditEnable = (row) => { console.log(row) }
+
 function openEvaluationDialog() {
   evalDialogVisible.value = true
+}
+
+// 打开评估详情页面
+// 获取评估的记录详情中的record_id
+async function EvaluationObjectEditEnable(row) {
+  try {
+    const res = await AiGenerateEvaluation.postEvaluationHistoryDetailList({ record_id: row.id })
+    console.log('res:', res);
+    const arr = Array.isArray(res.data.data?.data) ? res.data.data.data : []
+    console.log('arr:', arr);
+    // 只取你关心的字段
+    detailTableData.value = arr.map(item => {
+      let resultObj = {}
+      try {
+        resultObj = JSON.parse(item.result)
+        console.log('resultObj:', resultObj);
+      } catch (e) {}
+      return {
+        question: resultObj.question ?? '',
+        answer: resultObj.answer ?? '',
+        contexts: resultObj.contexts ?? '',
+        ground_truth: resultObj.ground_truth ?? '',
+        测试机器人: resultObj['测试机器人'] ?? '',
+        对话机器人: resultObj['对话机器人'] ?? ''
+      }
+    })
+    detailDialogVisible.value = true
+  } catch (e) {
+    ElMessage.error('获取详情失败')
+  }
 }
 
 onMounted(() => {
   getAgentList()
   getEntityList()
   getDatasetList()
+  getRecordList()
 })
 
 
