@@ -16,7 +16,7 @@
         </el-form-item> -->
         <el-form-item label="数据集">
           <el-cascader
-            v-model="selectedDataset"
+            v-model="formInline.dataset"
             :options="datasetTreeList"
             :props="cascaderProps"
             clearable
@@ -196,7 +196,7 @@ const formatRecordList = computed(() => {
     console.log('create_time创建日期展示方式:', create_time);
     return {
       ...item,
-      name: `${entityName}-${datasetName}-${createTime}`,
+      name: `${entityName}-${datasetName}-${create_time}`,
       datasetName,
       agentName: Array.isArray(item.agent) ? item.agent.join('，') : item.agent || '',
       entityName: item.entity || '',
@@ -221,8 +221,7 @@ const pageTotal = ref(0)
 const pageSizeDetail = ref(20) // 或更大，确保能获取全部数据
 const pageNumDetail = ref(1)
 const pageTotalDetail = ref(0)  
- 
-
+const DatabaseAllNode=ref([]) // 数据库所有节点
 const detailTableColumns = ref(['question','answer','contexts','ground_truth', '测试机器人', '对话机器人'])
 const detailTableData = ref([])
 
@@ -251,21 +250,45 @@ onMounted(() => {
   getDatasetList()
   getRecordList()
   getDatasetTreeList()
+  getDatabaseAllNode() 
 })
+
+// 1. 把 datasetId → datasetName
+function changeDatasetName(dataset) {
+  if (!dataset) return '';
+  const found = DatabaseAllNode.value.find(item => item.id === dataset);
+  console.log('数据集DatabaseAllNode',DatabaseAllNode.value)
+  console.log('found',found)
+  return found ? found.name : '';
+}
+
+// 2. 把 agentId → agentName
+function getAgentName(agentId) {
+  if (!agentId) return '';
+  const found = agentList.value.find(item => item.id === agentId);
+  console.log('agentlist',agentList.value)
+  console.log('found',found)
+  return found ? found.name : '';
+}
+
+// 3. 把 entityId → entityName
+function getEntityName(entityId) {
+  console.log('entityId',entityId)
+  if (!entityId) return '';
+  const found = entityList.value.find(item => item.id === entityId);
+  // console.log('found',found)
+  // console.log('found的name',found.name)
+  return found ? found.name : '';
+}
 
 async function handleQuery() {
   console.log('=== 开始查询 ===')
   console.log('查询条件:', formInline.value)
-  if (!formInline.value.name && !formInline.value.dataset && !formInline.value.agent && !formInline.value.entity) {
-      // 没有任何查询条件，查全部
-      await getRecordList();
-      return;
-    }
+
 
   try {
-   
-
-    const filters = [
+  
+  const filters = [
       {
         field: 'name',
         rule: 'contains',
@@ -274,40 +297,51 @@ async function handleQuery() {
       {
         field: 'dataset',
         rule: 'is',
-        value: formInline.value.dataset
+        value: changeDatasetName(formInline.value.dataset)
       },
       {
         field: 'agent',
         rule: 'is',
-        value: formInline.value.agent
+        value: getAgentName(formInline.value.agent)
       },
       {
         field: 'entity',
         rule: 'is',
-        value: formInline.value.entity
+        value: getEntityName(formInline.value.entity)
       }
       
-    ]
+    ].filter(rule =>
+      rule.value !== '' &&
+      rule.value !== undefined &&
+      rule.value !== null
+    )
     
+    console.log('查询条件的dataset:', changeDatasetName(formInline.value.dataset).trim())
+     if (filters.length === 0) {
+      await AiGenerateEvaluation.postEvaluationHistoryList()
+      return
+    }
 
     const params = {
       pageNum:  pageNum.value,
       pageSize: pageSize.value,
-      // pageEnable: true,
-      pageRule: filters.filter(rule => rule.value)
+      pageEnable: true,
+      pageRule: filters,
     };
     
     
     console.log('查询参数:', params)
     const res = await AiGenerateEvaluation.postEvaluationHistoryList(params)
     console.log('查询结果:', res)
-    console.log('后端原始数据:', res.data.data.data)
+    console.log('后端原始数据:', res.data.data)
    
     if (res.status === 200) {
       // 更新表格数据
-      recordList.value = res.data.data?.data || [];
+      recordList.value = res.data.data || [];
       // 更新分页信息
-      pageTotal.value = res.data.data?.total || 0;
+      pageTotal.value = res.data.total != null 
+      ? res.data.total 
+      : recordList.value.length
       pageNum.value = 1; // 保持分页器同步
 
       ElMessage.success('查询成功')
@@ -323,7 +357,28 @@ async function handleQuery() {
   }
   console.log('=== 查询结束 ===')
 }
+//获得所有数据集结点
+// 拉取所有节点
 
+
+
+
+
+
+async function getDatabaseAllNode() {
+  try {
+    // 根据后端接口定义，如果不需要分页参数就传 pageEnable:false
+    const res = await AiGenerateEvaluation.getAllLeafNode()
+    if (res.status === 200 && res.data.code === 'success') {
+      // 假设真正的数据都在 res.data.data.data
+      DatabaseAllNode.value = res.data.data || []
+    } else {
+      console.error('获取所有节点失败：', res.data.message)
+    }
+  } catch (err) {
+    console.error('调用 postDatasetItemList 出错：', err)
+  }
+}
 // 重置方法
 const handleReset = () => {
   console.log('=== 开始重置 ===')
@@ -331,7 +386,6 @@ const handleReset = () => {
   formInline.value = {dataset: ''}
   formInline.value = {agent: ''}
   formInline.value = {entity: ''}
-  
   handleQuery()
   console.log('=== 重置结束 ===')
 }
@@ -348,9 +402,10 @@ async function getRecordList() {
   const res = await AiGenerateEvaluation.postEvaluationHistoryList()
   console.log('接口返回:', res)
   // 检查实际数据结构
-  recordList.value = res.data.data.data || res.data.data.list || []
-  pageTotal.value = res.data.data.total || 0
+  recordList.value = res.data.data || res.data.data.list || []
   console.log('1-列表获得评估的记录:', recordList.value)
+  pageTotal.value = res.data.data.total || 0
+
 }
 
 // 获取评估器历史记录详情
@@ -383,7 +438,8 @@ async function getDatasetTreeList() {
 
 //获得数据集的映射关系 ， 数据集id 和 数据集名称
 async function getDatasetList() {
-  const res = await AiGenerateEvaluation.postDatasetItemFileList({ pageEnable: false })
+  const res = await AiGenerateEvaluation.postDatasetTreeList({ pageEnable: false })
+  console.log('获得数据集列表:', res);
   datasetList.value = res.data.data.data.map(item => ({
     id: item.id,
     name: item.name

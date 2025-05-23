@@ -137,11 +137,14 @@ export function deleteEvaluationHistoryInfo(params) {
     return request.delete("ai_evaluation/history/info", params)
 }
 
-
+//获得所有的叶子节点
+export function getAllLeafNode(data) {
+    return request.get("ai_evaluation/dataset/leaf", data)
+}
 
 // 评估历史详情-已改
-export function postEvaluationHistoryDetailList(data) {
-    return request.post("ai_evaluation/history/list", data)
+export function postEvaluationHistoryDetailList() {
+    return request.post("ai_evaluation/dataset/leaf")
 }
 
 export function postEvaluationHistoryDetailInfo(data) {

@@ -176,7 +176,7 @@ async function handleQuery() {
     )
     // 2. 没有任何有效条件 → 全量查询
     if (pageRule.length === 0) {
-      await getEvaluationObjectList()
+      await AiEvaluation.getEvaluationObjectList()
       return
     }
 
@@ -237,13 +237,13 @@ async function onSizeChange(val) {
   pageSize.value = val
   if (pageNum.value <= Math.ceil(pageTotal.value / pageSize.value)) {
     // 判断页码存在，不存在时会自动触发onPageChange
-    await  getEvaluationObjectList()
+    await  AiEvaluation.getEvaluationObjectList()
   }
 }
 
 async function onPageChange(val) {
   pageNum.value = val
-  await  getEvaluationObjectList()
+  await  AiEvaluation.getEvaluationObjectList()
 }
 
 function EvaluationObjectAddRow() {
@@ -277,7 +277,7 @@ async function EvaluationObjectonSubmit(row) {
       message: res.data.message,
       type: res.data.code,
     })
-    await  getEvaluationObjectList()
+    await  AiEvaluation.getEvaluationObjectList()
     rawEditing.value = false
   }
 }
@@ -315,7 +315,7 @@ async function EvaluationObjectDelete(id) {
   if (pageNum.value > Math.ceil((pageTotal.value - 1) / pageSize.value) && (pageNum.value !== 1)) {
     pageNum.value = pageNum.value - 1
   }
-  await getEvaluationObjectList()
+  await AiEvaluation.getEvaluationObjectList()
 }
 
 
