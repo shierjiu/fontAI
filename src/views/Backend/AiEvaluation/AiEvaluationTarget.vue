@@ -138,8 +138,8 @@ const typeList = ref([
   {name: "DELETE"},
 ])
 const streamOutList = ref([
-  {name: "true", value: 1},
-  {name: "false", value: 0},
+  { name: "是", value: true  },
+  { name: "否", value: false },
 ])
 
 const previewContent = ref('')
@@ -150,8 +150,8 @@ const formInline = ref({
   name: '',
   url: '',
   method: '',
-  stream: ''
-})
+  stream: undefined,
+});
 
 // async function  getModelList() {
 //   const data = {pageEnable: true, pageSize: pageSize.value, pageNum: pageNum.value}
@@ -165,38 +165,32 @@ async function handleQuery() {
   console.log('查询条件:', formInline.value)
 
   try {
-    if (!formInline.value.name && !formInline.value.method && !formInline.value.stream) {
-      // 没有任何查询条件，查全部
-      await getEvaluationObjectList();
-      return;
+      const pageRule = [
+      { field: 'name',   rule: 'contains', value: formInline.value.name?.trim() },
+      { field: 'method', rule: 'is',       value: formInline.value.method?.trim() },
+      { field: 'stream', rule: 'is',       value: formInline.value.stream }
+    ].filter(rule =>
+      rule.value !== '' &&
+      rule.value !== undefined &&
+      rule.value !== null
+    )
+    // 2. 没有任何有效条件 → 全量查询
+    if (pageRule.length === 0) {
+      await getEvaluationObjectList()
+      return
     }
 
     const params = {
       pageNum:  pageNum.value,
       pageSize: pageSize.value,
       pageEnable: true,
-      pageRule: [
-        { 
-          field: 'name', 
-          rule: 'contains',
-          value: formInline.value.name?.trim()
-        },
-        { 
-          field: 'method', 
-          rule: 'is',
-          value: formInline.value.method?.trim()
-        },
-        { 
-          field: 'stream', 
-          rule: 'is',
-          value: formInline.value.stream
-        }
-      ].filter(rule => rule.value !== '' && rule.value !== undefined && rule.value !== null)
+      pageRule,
     };
     
     console.log('查询参数:', params)
     const res = await AiEvaluation.postEvaluationObjectList(params)
     console.log('查询结果:', res)
+
     if (res.status === 200) {
       modelList.value = res.data.data?.data || [];
       pageTotal.value = res.data.data?.total || 0;
@@ -215,15 +209,16 @@ async function handleQuery() {
 
 
 
-const handleReset = () => {
-  console.log('=== 开始重置 ===')
-  formInline.value = {name: ''}
-  formInline.value = {method: ''}
-  formInline.value = {stream: ''}
-  // 重置后自动查询
+function handleReset() {
+  formInline.value = {
+    name: '',
+    url: '',
+    method: '',
+    stream: undefined, 
+  }
   handleQuery()
-  console.log('=== 重置结束 ===')
 }
+
 
 
 // 获取评估对象列表
@@ -327,12 +322,12 @@ async function EvaluationObjectDelete(id) {
 
 // TODO 调试
 async function debugObject(row) {
-  const entity_id = row.id
+  const entity = row.id
   console.log('=== 开始调试 ===')
-  console.log('调试对象:', entity_id)
+  console.log('调试对象:', entity)
   try {
     // 调用 OneclickUpdate，传递 entity_id
-    const res = await OneclickUpdate({ entity_id })
+    const res = await OneclickUpdate({ entity })
     // 假设返回内容在 res.data
     const info = res.data ? JSON.stringify(res.data) : '无返回内容'
     ElNotification({
