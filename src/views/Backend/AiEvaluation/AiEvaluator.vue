@@ -160,6 +160,7 @@ import * as AiGenerateEvaluation from "@/api/AiEvaluation"
 import * as AiServer from "@/api/AiServer"
 import dayjs from 'dayjs'
 import AiEvaluationTarget from './AiEvaluationTarget.vue';
+// import { da } from 'element-plus/es/locale';
 
 const evalDialogVisible = ref(false)
 const evalForm = ref({ agent_id: [], entity_id: '', dataset_id: '' })
@@ -284,52 +285,25 @@ function getEntityName(entityId) {
 async function handleQuery() {
   console.log('=== 开始查询 ===')
   console.log('查询条件:', formInline.value)
-
+  const name= formInline.value.name?.trim() || '';
+  const dataset = changeDatasetName(formInline.value.dataset)?.trim() || '';
+  const agent = getAgentName(formInline.value.agent)?.trim() || '';
+  const entity = getEntityName(formInline.value.entity)?.trim() || '';
 
   try {
-  
-  const filters = [
-      {
-        field: 'name',
-        rule: 'contains',
-        value: formInline.value.name?.trim()
-      },
-      {
-        field: 'dataset',
-        rule: 'is',
-        value: changeDatasetName(formInline.value.dataset)
-      },
-      {
-        field: 'agent',
-        rule: 'is',
-        value: getAgentName(formInline.value.agent)
-      },
-      {
-        field: 'entity',
-        rule: 'is',
-        value: getEntityName(formInline.value.entity)
-      }
-      
-    ].filter(rule =>
-      rule.value !== '' &&
-      rule.value !== undefined &&
-      rule.value !== null
-    )
+    // 构建查询参数
+    const params = {
+      name: name,
+      dataset: dataset,
+      agent: agent,
+      entity: entity,
+    };
     
-    console.log('查询条件的dataset:', changeDatasetName(formInline.value.dataset).trim())
-     if (filters.length === 0) {
+      if (!params.name && !params.dataset && !params.agent && !params.entity) {
+      //console.log('没有查询条件，直接查询所有记录')
       await AiGenerateEvaluation.postEvaluationHistoryList()
       return
     }
-
-    const params = {
-      pageNum:  pageNum.value,
-      pageSize: pageSize.value,
-      pageEnable: true,
-      pageRule: filters,
-    };
-    
-    
     console.log('查询参数:', params)
     const res = await AiGenerateEvaluation.postEvaluationHistoryList(params)
     console.log('查询结果:', res)
