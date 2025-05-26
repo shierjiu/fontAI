@@ -88,7 +88,7 @@
     <el-table-column label="操作" width="200" fixed="right">
       <template #default="scope">
         <div v-if="scope.row.editing">
-          <el-button link type="primary" size="small" @click="EvaluationRecodeSubmit(scope.row)">提交</el-button>
+          <el-button link type="primary" size="small" @click="EvaluationRecodeDetailSubmit(scope.row)">提交</el-button>
           <el-button link type="info" size="small" @click="EvaluationRecodeCancel(scope.row)">取消</el-button>
         </div>
         <div v-else>
@@ -136,7 +136,7 @@
     >
       <el-table :data="resultObj" border style="width: 100%;" class="detail-table">
         <el-table-column
-          v-for="(value, key) in resultObj[0] || {}"
+          v-for="(value, key, index) in resultObj[0] || {}"
           :key="key"
           :prop="key"
           :label="key"
@@ -145,7 +145,27 @@
           class-name="custom-cell"
           header-class-name="custom-header"
           show-overflow-tooltip
-        />
+        >
+        <template #default="scope">
+          <div v-if="scope.row.editing">
+            <el-input v-model="scope.row[key]" size="small" />
+          </div>
+          <div v-else>
+            <span :title="scope.row[key]">{{ scope.row[key] }}</span>
+          </div>
+        </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+        <template #default="scope">
+          <div v-if="scope.row.editing">
+            <el-button type="primary" link size="small" @click="submitDetailRowEdit(scope.row)">提交</el-button>
+            <el-button type="info" link size="small" @click="cancelEditDetailRow(scope.row)">取消</el-button>
+          </div>
+          <div v-else>
+            <el-button type="primary" link size="small" @click="startEditDetailRow(scope.row,scope.$index)">编辑</el-button>
+          </div>
+        </template>
+      </el-table-column>
       </el-table>
     </el-drawer>
 
@@ -185,7 +205,7 @@ const entityList = ref([]) // 评测对象列表
 const detailDrawerVisible = ref(false)
 const detailData = ref({})
 const resultObj = ref({}) // 这里存放你获取到的对象
-
+let editingRowIndex = ref(null);  // 用于控制当前编辑的行
 const agentMap = computed(() => Object.fromEntries(agentList.value.map(a => [a.id, a.name])))
 
 const formatRecordList = computed(() => {
@@ -361,6 +381,7 @@ const handleReset = () => {
   formInline.value = {agent: ''}
   formInline.value = {entity: ''}
   handleQuery()
+  getRecordList()
   console.log('=== 重置结束 ===')
 }
 
@@ -372,7 +393,7 @@ async function openEvaluationDialog() {
 
 // 获取评估器历史记录
 async function getRecordList() {
-
+  //console.log('开始获取评估的记录列表')
   const res = await AiGenerateEvaluation.postEvaluationHistoryList()
   console.log('接口返回:', res)
   // 检查实际数据结构
@@ -384,10 +405,10 @@ async function getRecordList() {
 
 // 获取评估器历史记录详情
 async function getRecordDetailList() {
+  console.log("recordList", recordList.value)
   const res = await AiGenerateEvaluation.postEvaluationHistoryDetailList({
-     record_id: recordList.value[0].id 
+     record: recordList.value[0].id 
     })
-
     detailTableData.value = res.data.data.data || []
     pageTotalDetail.value = res.data.data.total || 0
   console.log('获得评估的记录详情:', res);
@@ -562,6 +583,7 @@ async function EvaluationRecodeSubmit(row) {
 // 取消评测记录分数
 
 async function EvaluationRecodeCancel(row) {
+  console.log('EvaluationRecodeCancel:', row);
   if (row.id) {
     row.editing = false
   } else {
@@ -602,6 +624,7 @@ async function EvaluationRecodeDetailCancel(row) {
 // 获取评估的记录详情中的record_id
 async function EvaluationDetailRecord(row) {
   console.log('评做器的ROW记录EvaluationDetailRecord:', row);
+  console.log('评做器的ROW记录ID:', row.id);
   try {
     const res = await AiGenerateEvaluation.postEvaluationHistoryDetailList({ record: row.id })
     console.log('获取到的列表记录:', res);
@@ -639,7 +662,51 @@ const cascaderProps = {
 function handleCascaderChange(val) {
   console.log('选中的数据集id:', val)
 }
-
+//编辑详情数据
+async function submitDetailRowEdit(row) {
+  try {
+    delete row.editing
+    let resultData = row.result;
+      if (typeof row.result === 'string') {
+      try {
+        console.log('尝试解析 row.result:', row.result);
+        resultData = JSON.parse(row.result); // 解析 row 为对象
+      } catch (error) {
+        console.error('JSON 解析失败:', error);
+        ElMessage.error('数据格式错误');
+        return;
+      }
+    }
+    const data = {
+      id:row.id,
+      result:resultData
+    }
+    console.log('提交编辑的行数据:', data);
+    const res = await AiGenerateEvaluation.postEvaluationHistoryDetailEdit(data)
+    if (res.status === 200 && res.data.code === 'success') {
+      ElMessage.success('修改成功')
+      await getRecordDetailList()
+      row.editing = false
+      rawEditing.value = false
+    } else {
+      ElMessage.error(res.data.message || '提交失败')
+    }
+  } catch (error) {
+    console.error('提交失败', error)
+    ElMessage.error('提交时发生错误')
+  }
+}
+function startEditDetailRow(row,index) {
+  console.log('选择数据:', row);
+  console.log('选择数据的索引:', index);
+  row.editing = true;
+}
+//取消
+function cancelEditDetailRow(row) {
+  console.log('取消编辑:', row);
+  row.editing = false;
+  rawEditing.value = false;
+}
 </script>
 
 <style scoped>

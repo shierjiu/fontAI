@@ -143,8 +143,8 @@ export function getAllLeafNode(data) {
 }
 
 // 评估历史详情-已改
-export function postEvaluationHistoryDetailList() {
-    return request.post("ai_evaluation/dataset/leaf")
+export function postEvaluationHistoryDetailList(data) {
+    return request.post("ai_evaluation/history/list",data)
 }
 
 export function postEvaluationHistoryDetailInfo(data) {
@@ -171,4 +171,7 @@ export function downloadDatasetFile (params) {
 }
 
 
-
+//详情数据编辑
+export function postEvaluationHistoryDetailEdit(data) {
+    return request.post("ai_evaluation/history/info", data)
+}
