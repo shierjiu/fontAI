@@ -670,16 +670,10 @@ function handleCascaderChange(val) {
 async function submitDetailRowEdit(row) {
   try {
     delete row.editing
-    let resultData = row.result;
-      if (typeof row.result === 'string') {
-      try {
-        console.log('尝试解析 row.result:', row.result);
-        resultData = JSON.parse(row.result); // 解析 row 为对象
-      } catch (error) {
-        console.error('JSON 解析失败:', error);
-        ElMessage.error('数据格式错误');
-        return;
-      }
+    let resultData = row;
+    console.log('resultData:', resultData);
+      if (typeof resultData === 'object' && resultData !== null) {
+        resultData = JSON.stringify(resultData);  
     }
     const data = {
       id:row.id,
