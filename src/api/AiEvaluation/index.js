@@ -148,7 +148,7 @@ export function postEvaluationHistoryDetailList(data) {
 }
 
 export function postEvaluationHistoryDetailInfo(data) {
-    return request.post("ai_evaluation/evaluation/history/detail/info", data)
+    return request.post("ai_evaluation/record/info", data)
 }
 
 export function deleteEvaluationHistoryDetailInfo(params) {

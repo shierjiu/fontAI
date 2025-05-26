@@ -9,7 +9,7 @@ const BASE_URL = "http://192.168.186.41:8000"
 
 const request = axios.create({
     baseURL: BASE_URL, // 设置基础 URL
-    timeout: 5000, // 设置超时时间
+    timeout: 50000, // 设置超时时间
 })
 
 // 请求拦截器

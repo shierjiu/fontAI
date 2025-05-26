@@ -1725,7 +1725,7 @@ async function OneclickUpdateAnswer() {
         ElMessage.success('所有任务已完成，停止轮询！')
         isUpdatingAnswer.value = false
       }
-    }, 2000)
+    }, 20000)
 
   } catch (err) {
     console.error('[OneclickUpdateAnswer]', err)

@@ -592,6 +592,7 @@ async function EvaluationRecodeCancel(row) {
       recordList.value.splice(index, 1)
     }
   }
+  row.editing = false;
   rawEditing.value = false
 }
 
@@ -601,12 +602,15 @@ async function EvaluationRecodeCancel(row) {
 async function EvaluationRecodeDetailSubmit(row) {
   const data = row.editData
   const res = await AiGenerateEvaluation.postEvaluationHistoryDetailInfo(data)
+  console.log('提交评测记录分数的结果:', res.status);
   if (res.status === 200) {
     ElNotification({
       message: res.data.message,
       type: res.data.code,
     })
     await  getRecordDetailList()
+    await getRecordList()
+    row.editing = false;
     rawEditing.value = false
   }
 }
