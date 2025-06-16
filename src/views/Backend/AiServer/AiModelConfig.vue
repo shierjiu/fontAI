@@ -64,6 +64,8 @@ const modelList = ref([])
 const rawEditing = ref(false)
 const typeList = ref([
   {name: "SDK(OpenAI)"},
+  { name: 'CURL' },
+  { name: 'SDK(AzureOpenAI)' }
 ])
 
 async function getModelList() {

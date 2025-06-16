@@ -1,4 +1,5 @@
 <template>
+  <div v-if="route.name === 'AiEvaluator'">
   <div class="dataset-container">
      <div class="button-group">
         <el-button class="headerButton" type="primary" plain @click="openEvaluationDialog">开始评测</el-button>
@@ -9,30 +10,19 @@
         <el-form-item label="名称">
           <el-input v-model="formInline.name" placeholder="请输入名称" clearable style="width: 180px;"/>
         </el-form-item>
-        <!-- <el-form-item label="数据集">
-          <el-select v-model="formInline.dataset" placeholder="请选择数据集" clearable style="width: 180px;">
-            <el-option v-for="item in datasetList" :key="item.id" :label="item.name" :value="item.id"/>
-          </el-select>
-        </el-form-item> -->
         <el-form-item label="数据集">
-          <el-cascader
-            v-model="formInline.dataset"
-            :options="datasetTreeList"
-            :props="cascaderProps"
-            clearable
-            filterable
-            placeholder="请选择数据集"
-            style="width: 100%;"
-          />
+          <el-select v-model="formInline.dataset" placeholder="请选择数据集" clearable style="width: 180px;">
+            <el-option v-for="item in listDataset" :key="item.id" :label="item" :value="item"/>
+          </el-select>
         </el-form-item>
         <el-form-item label="智能体">
           <el-select v-model="formInline.agent" placeholder="请选择智能体" clearable style="width: 180px;">
-            <el-option v-for="item in agentList" :key="item.id" :label="item.name" :value="item.id"/>
+            <el-option v-for="item in agentList" :key="item" :label="item" :value="item"/>
           </el-select>
         </el-form-item>
         <el-form-item label="评测对象">
           <el-select v-model="formInline.entity" placeholder="请选择评测对象" clearable style="width: 180px;">
-            <el-option v-for="item in entityList" :key="item.id" :label="item.name" :value="item.id"/>
+            <el-option v-for="item in entityList" :key="item" :label="item" :value="item"/>
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -42,7 +32,7 @@
       </el-form>
     </div>
     <!-- 评估记录列表 -->
-    <el-table :data="recordList" border style="width: 100%">
+    <el-table :data="formatRecordList" border style="width: 100%">
     <el-table-column prop="name" label="名称" width="250" class-name="ellipsis-cell">
       <template #default="scope">
         <el-input v-if="scope.row.editing" v-model="scope.row.editData.name" placeholder="请输入"/>
@@ -92,7 +82,7 @@
           <el-button link type="info" size="small" @click="EvaluationRecodeCancel(scope.row)">取消</el-button>
         </div>
         <div v-else>
-          <el-button link type="primary" size="small" @click="EvaluationDetailRecord(scope.row)">详情数据</el-button> 
+          <el-button link type="primary" size="small" @click="() => router.push({ name:'EvaluatorDetails', params:{ id: scope.row.id }})">详情数据</el-button> 
           <el-button link type="primary" size="small" @click="EvaluationRecodeEdit(scope.row)">编辑</el-button>   
         </div>
       </template>
@@ -103,23 +93,35 @@
   <!-- 选择评测对象 -->
     <el-dialog v-model="evalDialogVisible" title="评测对象选择" width="20%">
       <el-form :model="evalForm">
-        <el-form-item label="智能体">
-          <el-select v-model="evalForm.agent_id" multiple placeholder="请选择智能体">
-            <el-option v-for="a in agentList" :key="a.id" :label="a.name" :value="a.id"/>
-          </el-select>
-        </el-form-item>
-      <el-form-item label="数据集">
-        <el-cascader
-            v-model="selectedDataset"
-            :options="datasetTreeList"
-            :props="cascaderProps"
-            clearable
-            filterable
-            placeholder="请选择数据集"
-            @change="handleCascaderChange"
-            style="width: 100%;"
+        <el-form-item label="测评器">
+          <el-cascader 
+          v-model="evalForm.agent_id" 
+          :options="cascaderOptions"
+          placeholder="请选择测评器" 
+          style="width: 100%;"
+          multiple
+          :props="{
+            emitPath: false, 
+            multiple: true,
+            checkStrictly: false,
+            expandTrigger: 'click',
+            value: 'value',
+            label: 'label',
+            children: 'children',
+
+          }"
+          :show-all-levels="false"
           />
-          </el-form-item>
+            <!-- <el-option-group v-for="grp in groupedAgents" :key="grp.group" :label="grp.group">
+              <el-option v-for="a in grp.agents" :key="a.id" :label="a.name" :value="a.id"/>
+            </el-option-group>
+          </el-cascader> -->
+        </el-form-item>
+    <el-form-item label="数据集">
+      <el-select v-model="evalFormInline.dataset" placeholder="请选择数据集" clearable >
+        <el-option v-for="item in datasetList" :key="item.id" :label="item.name" :value="item.id"/>
+      </el-select>
+    </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="evalDialogVisible = false">取消</el-button>
@@ -136,7 +138,7 @@
     >
       <el-table :data="resultObj" border style="width: 100%;" class="detail-table">
         <el-table-column
-          v-for="(value, key, index) in resultObj[0] || {}"
+          v-for="key in detailTableKeys"
           :key="key"
           :prop="key"
           :label="key"
@@ -170,6 +172,8 @@
     </el-drawer>
 
   </div>
+  </div>
+  <router-view v-else name="EvaluatorDetails" />
 </template>
 
 <script setup>
@@ -179,9 +183,10 @@ import { ref, computed, onMounted } from 'vue';
 import * as AiGenerateEvaluation from "@/api/AiEvaluation"
 import * as AiServer from "@/api/AiServer"
 import dayjs from 'dayjs'
-import AiEvaluationTarget from './AiEvaluationTarget.vue';
-// import { da } from 'element-plus/es/locale';
+import { useRouter,useRoute } from 'vue-router'
 
+const router = useRouter()
+const route = useRoute()
 const evalDialogVisible = ref(false)
 const evalForm = ref({ agent_id: [], entity_id: '', dataset_id: '' })
 const isEvaluating = ref(false)
@@ -199,22 +204,31 @@ const rawEditing = ref(false)
 const recordList = ref([])
 const agentList = ref([])  // 智能体列表
 const datasetList = ref([]) // 数据集列表
+const listDataset=ref([]) // 列表的数据集
 const datasetTreeList = ref([]) // 树结构数据
 const datasetMap = ref({}) // 数据集映射
 const entityList = ref([]) // 评测对象列表
+const agentGroupList = ref([]) // 评测测评器的列表
 const detailDrawerVisible = ref(false)
 const detailData = ref({})
-const resultObj = ref({}) // 这里存放你获取到的对象
+const resultObj = ref({}) // 这里存放你获取到的详情数据的对象
 let editingRowIndex = ref(null);  // 用于控制当前编辑的行
-const agentMap = computed(() => Object.fromEntries(agentList.value.map(a => [a.id, a.name])))
+
+// 计算出需要展示的表头（去除'id'字段和'editing'字段）
+const detailTableKeys = computed(() => {
+  const firstRow = resultObj.value && Array.isArray(resultObj.value) ? resultObj.value[0] : null;
+  if (!firstRow) return [];
+  return Object.keys(firstRow).filter(key => key !== 'id' && key !=='editing');
+});
+
 
 const formatRecordList = computed(() => {
   return recordList.value.map(item => {
-    const entityName = entityMap.value[item.entity] || item.entity
+    const entityName =  item.entity
     const datasetName = getDatasetName(item.dataset)
-    const agentName = agentMap.value[item.agent] || item.agent
+    const agentName = item.agent
     const create_time = dayjs(item.create_time).format('YYYY-MM-DD HH:mm:ss')
-    console.log('create_time创建日期展示方式:', create_time);
+    //console.log('create_time创建日期展示方式:', create_time);
     return {
       ...item,
       name: `${entityName}-${datasetName}-${create_time}`,
@@ -234,7 +248,9 @@ const formInline = ref({
   entity: '',
   stream: 'false'
 })
-
+const evalFormInline = ref({
+  dataset: ''
+})
 // 分页
 const pageSize = ref(20) // 或更大，确保能获取全部数据
 const pageNum = ref(1)
@@ -272,6 +288,8 @@ onMounted(() => {
   getRecordList()
   getDatasetTreeList()
   getDatabaseAllNode() 
+  getListDataset()
+  getAgentGroupList()
 })
 
 // 1. 把 datasetId → datasetName
@@ -306,32 +324,37 @@ async function handleQuery() {
   console.log('=== 开始查询 ===')
   console.log('查询条件:', formInline.value)
   const name= formInline.value.name?.trim() || '';
-  const dataset = changeDatasetName(formInline.value.dataset)?.trim() || '';
-  const agent = getAgentName(formInline.value.agent)?.trim() || '';
-  const entity = getEntityName(formInline.value.entity)?.trim() || '';
-
+  const dataset = formInline.value.dataset?.trim() || '';
+  const agent = formInline.value.agent?.trim() || '';
+  const entity = formInline.value.entity?.trim() || '';
+  console.log("选择的数据集",dataset)
   try {
     // 构建查询参数
     const params = {
-      name: name,
-      dataset: dataset,
-      agent: agent,
-      entity: entity,
+      pageEnable:true,
+      pageNum:pageNum.value,
+      pageSize:pageSize.value,
+      filters:[
+        {field:"name",rule:"contains",value:name},
+        {field:"dataset",rule:"contains",value:dataset},
+        {field:"agent",rule:"contains",value:agent},
+        {field:"entity",rule:"contains",value:entity}
+      ]
     };
     
-      if (!params.name && !params.dataset && !params.agent && !params.entity) {
-      //console.log('没有查询条件，直接查询所有记录')
-      await AiGenerateEvaluation.postEvaluationHistoryList()
-      return
-    }
+      if (!name && !dataset && !agent && !entity) {
+        // 没有任何过滤条件，直接取全部
+        await AiGenerateEvaluation.postEvaluationHistoryList(params)
+        return
+      }
     console.log('查询参数:', params)
     const res = await AiGenerateEvaluation.postEvaluationHistoryList(params)
     console.log('查询结果:', res)
-    console.log('后端原始数据:', res.data.data)
+    console.log('后端原始数据:', res.data.data.data)
    
     if (res.status === 200) {
       // 更新表格数据
-      recordList.value = res.data.data || [];
+      recordList.value = res.data.data.data || [];
       // 更新分页信息
       pageTotal.value = res.data.total != null 
       ? res.data.total 
@@ -356,16 +379,20 @@ async function handleQuery() {
 
 
 
-
-
-
 async function getDatabaseAllNode() {
+  console.log('num,size',pageNum,pageSize)
+    const params={
+    pageEnable:true,
+    pageNum:pageNum.value,
+    pageSize:pageSize.value,
+    pageRule:[{}]
+  }
   try {
     // 根据后端接口定义，如果不需要分页参数就传 pageEnable:false
-    const res = await AiGenerateEvaluation.getAllLeafNode()
+    const res = await AiGenerateEvaluation.getAllLeafNode(params)
     if (res.status === 200 && res.data.code === 'success') {
       // 假设真正的数据都在 res.data.data.data
-      DatabaseAllNode.value = res.data.data || []
+      DatabaseAllNode.value = res.data.data.data || []
     } else {
       console.error('获取所有节点失败：', res.data.message)
     }
@@ -394,10 +421,34 @@ async function openEvaluationDialog() {
 // 获取评估器历史记录
 async function getRecordList() {
   //console.log('开始获取评估的记录列表')
-  const res = await AiGenerateEvaluation.postEvaluationHistoryList()
+  const name= formInline.value.name?.trim() || '';
+  const dataset = changeDatasetName(formInline.value.dataset)?.trim() || '';
+  const agent = getAgentName(formInline.value.agent)?.trim() || '';
+  const entity = getEntityName(formInline.value.entity)?.trim() || '';
+    // 构建查询参数
+  const params = {
+    pageEnable:true,
+    pageNum:pageNum.value,
+    pageSize:pageSize.value,
+    filters:[
+      // {field:"name",rule:"contains",value:name},
+      // {field:"dataset",rule:"contains",value:dataset},
+      // {field:"agent",rule:"contains",value:agent},
+      // {field:"entity",rule:"contains",value:entity}
+    ]
+  };
+  console.log('查询参数:', params.filters)
+  const res = await AiGenerateEvaluation.postEvaluationHistoryList(params)
   console.log('接口返回:', res)
+  const payload = res.data.data.data
+  let rawList = []
   // 检查实际数据结构
-  recordList.value = res.data.data || res.data.data.list || []
+  if (Array.isArray(payload)) {
+    rawList = payload
+  } else if (Array.isArray(payload?.list)) {
+    rawList = payload.list
+  }
+  recordList.value = rawList
   console.log('1-列表获得评估的记录:', recordList.value)
   pageTotal.value = res.data.data.total || 0
 
@@ -406,9 +457,17 @@ async function getRecordList() {
 // 获取评估器历史记录详情
 async function getRecordDetailList() {
   console.log("recordList", recordList.value)
-  const res = await AiGenerateEvaluation.postEvaluationHistoryDetailList({
-     record: recordList.value[0].id 
-    })
+    const params={
+    pageNum:pageNum.value,
+    pageSize:pageSize.value,
+    pageEnable:true,
+    filters:[{
+      field:"record",
+      rule:"is",
+      value:recordList.value[0].id 
+    }]
+  }
+  const res = await AiGenerateEvaluation.postEvaluationHistoryDetailList(params)
     detailTableData.value = res.data.data.data || []
     pageTotalDetail.value = res.data.data.total || 0
   console.log('获得评估的记录详情:', res);
@@ -433,7 +492,13 @@ async function getDatasetTreeList() {
 
 //获得数据集的映射关系 ， 数据集id 和 数据集名称
 async function getDatasetList() {
-  const res = await AiGenerateEvaluation.postDatasetTreeList({ pageEnable: false })
+  const params={
+    pageEnable:true,
+    pageNum:pageNum.value,
+    pageSize:pageSize.value,
+    pageRule:[{}]
+  }
+  const res = await AiGenerateEvaluation.postDatasetList(params)
   console.log('获得数据集列表:', res);
   datasetList.value = res.data.data.data.map(item => ({
     id: item.id,
@@ -442,6 +507,7 @@ async function getDatasetList() {
   datasetMap.value = Object.fromEntries(datasetList.value.map(item => [String(item.id), item.name]))
   console.log('数据集列表:', datasetList.value);
 }
+
 // 获取评测对象的名称
 function getDatasetName(datasetId) {
   if (!datasetId) return ''
@@ -483,41 +549,59 @@ async function onPageChangeDetail(val) {
 
 // 获取评测对象的方法
 async function getEntityList() {
-  // const data = {pageEnable: true, pageSize: 100, pageNum: 1}
-  // const res = await AiGenerateEvaluation.postEntityList(data)
-  // entityList.value = res.data.data.data
-  const res = await AiGenerateEvaluation.postEvaluationObjectList({ pageEnable: true, pageSize: 100, pageNum: 1 })
-  entityList.value = res.data.data.data
+  const res = await AiGenerateEvaluation.postEvaluationEntityList()
+  entityList.value = res.data.data
+  console.log('获取评测对象列表:', entityList.value);
 }
 
 // 获取智能体名称
 async function getAgentList() {
-  const res = await AiServer.postAgentList({ pageEnable: true, pageSize: 100, pageNum: 1 })
-  agentList.value = res.data.data.data
-  console
+  const res = await AiGenerateEvaluation.postEvaluationAgentList()
+  agentList.value = res.data.data
+  console.log('获取智能体名称:', agentList.value);
 }
 
-
+//获取列表的数据集
+async function getListDataset() {
+  const res = await AiGenerateEvaluation.postEvaluationDatasetList()
+  listDataset.value = res.data.data
+  console.log('获取列表的数据集:', listDataset.value);
+}
+//获取评测测评器的列表
+async function getAgentGroupList() {
+  const res = await AiGenerateEvaluation.postEvaluationAgentGroupList()
+  agentGroupList.value = res.data.data
+  console.log('获取评测测评器的列表:', agentGroupList.value);
+}
+//对评测器进行分组
+const cascaderOptions = computed(() => {
+  const groups = {}
+  for (const a of agentGroupList.value) {
+    if (!groups[a.group]) {
+      groups[a.group] = { label: a.group, value: a.group, children: [] }
+    }
+    groups[a.group].children.push({
+      label: a.name,
+      value: a.id
+    })
+  }
+  console.log('分组后的评测器列表:', groups)
+  return Object.values(groups)
+})
 // 开始评测
 async function startEvaluation() {
   isEvaluating.value = true
   try {
-    // 假设 evalForm.value.agent_id 是 {0: 2, 1: 3} 这种对象
+    console.log('开始评测，当前表单数据:', evalFormInline.value);
+    console.log('开始评测，当前选中的评测器:', evalForm.value.agent_id);
     const agentIdObj = evalForm.value.agent_id;
     // 取出所有 value，组成数组
     const agentIds = Object.values(agentIdObj);
-    // 单个数据集id
-    // const datasetId = evalForm.value.dataset_id;
-    const datasetId = selectedDataset.value;
-
-    // 打印确认
-    console.log('1-最后agent的值:', agentIds, Array.isArray(agentIds) ? 'array' : typeof agentIds);
-    console.log('1-最后datasetId的值:', datasetId, typeof datasetId);
-
+    const datasetId = evalFormInline.value.dataset;
     // 组装参数
     const params = {
-        agent: agentIds,
         dataset: datasetId,
+        agent: agentIds,
     };
     console.log('1-组装参数为:', params);
     
@@ -533,8 +617,6 @@ async function startEvaluation() {
     isEvaluating.value = false;
   }
 }
-
-
 
 
 async function EvaluationRecodeEdit(row) {
@@ -614,25 +696,40 @@ async function EvaluationRecodeDetailSubmit(row) {
     rawEditing.value = false
   }
 }
-
-// 取消评测记录分数
-
-async function EvaluationRecodeDetailCancel(row) {
-
-  console.log('EvaluationRecodeDetailCancel:', row);
-} 
-
-
 // 打开评估详情页面
+//深度解析
+function deepParse(value){
+  if(Array.isArray(value)){
+    return value.map(item=>deepParse(item))
+  }
+  if(typeof value === 'object' && value !== null){
+    const result = {}
+    for(const [k,v] of Object.entries(value)){
+      result[k]= deepParse(v)
+    }
+    return result
+  }
+  return value
+}
 
 // 获取评估的记录详情中的record_id
 async function EvaluationDetailRecord(row) {
   console.log('评做器的ROW记录EvaluationDetailRecord:', row);
   console.log('评做器的ROW记录ID:', row.id);
+  const params={
+    pageNum:pageNum.value,
+    pageSize:pageSize.value,
+    pageEnable:true,
+    pageRule:[{
+      field:"record",
+      rule:"is",
+      value:row.id
+    }]
+  }
   try {
-    const res = await AiGenerateEvaluation.postEvaluationHistoryDetailList({ record: row.id })
+    const res = await AiGenerateEvaluation.postEvaluationHistoryDetailList(params)
     console.log('获取到的列表记录:', res);
-    const arr = Array.isArray(res.data?.data) ? res.data.data: []
+    const arr = res.data.data.data;
     console.log('获取到的arr:', arr);
     // 解析每一项的 result 字段
     resultObj.value = arr.map(item => {
@@ -640,10 +737,17 @@ async function EvaluationDetailRecord(row) {
       try {
         resultObj = JSON.parse(item.result)
       } catch (e) {}
+      const agents = item.record.agent  || []
+      console.log('获取到的agents:', agents);
+      agents.forEach(name=>{
+      if(!(name in resultObj)){
+       resultObj[name] = null
+      }
+    })
       return resultObj
     })
     detailDrawerVisible.value = true
-    console.log('resultObj获取到的结果对象的值 :', resultObj.value);
+    console.log('resultObj获取到的结果对象的值 :', resultObj);
   } catch (e) {
     ElMessage.error('获取详情失败')
   }

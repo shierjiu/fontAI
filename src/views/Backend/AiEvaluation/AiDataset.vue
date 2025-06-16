@@ -281,18 +281,6 @@
               <div class="el-upload__tip">
                 支持Excel格式，单个文件不超过20MB
               </div>
-              <!-- 回显区域放到 tip 里 -->
-              <!-- <div class="preview-files" v-if="fileNames.length">
-                <el-tag
-                  v-for="(n, i) in fileNames"
-                  :key="i"
-                  :type="n === selectedFileName ? 'success' : 'info'"
-                  @click="selectedFileName = n"
-                  style="cursor: pointer; margin: 4px 4px;"
-                >
-                  {{ n }}
-                </el-tag>
-              </div> -->
             </template>
           </el-upload>
         </el-form-item>
@@ -417,7 +405,7 @@ const isCollapsed = ref(false)
 /* 统一的面板宽度变量（展开 300，收起 0）*/
 const panelWidth  = computed(() => (isCollapsed.value ? 0 : 200))
 const currentNodeKey = ref(null)
-const treeRef = ref(null)
+const treeRef = ref(null)// 树形结构引用
 const treeData = ref([])
 const dialogVisible = ref(false)
 const dialogType = ref('add')
@@ -1062,7 +1050,6 @@ async function DatasetItemInfoSubmit(row) {
 }
 
 // 编辑
-// 修改 DataSetInfoEditEnable 函数
 function DataSetInfoEditEnable(row) {
   if (rawEditing.value) {
     ElNotification({

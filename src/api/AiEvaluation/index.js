@@ -30,22 +30,29 @@ export function EvaluationExcelImport(payload) {
 
 // tree为查询操作
 export function postDatasetTreeList(data) {
-    return request.post("ai_evaluation/tree/server", data)
+    return request.post("project_management/project/tree", data)
 }
 // 创建多个节点数
 export function postDatasetTreeInfo(data) {
-    return request.post("ai_evaluation/tree/info", data)
+    return request.post("project_management/project/info", data)
 }
 // 删除节点树
-export function deleteDatasetTreeInfo(datasetId) {
-    return request.delete("ai_evaluation/tree/server", { data: { dataset: datasetId } })
+export function deleteDatasetTreeInfo(projectId) {
+    return request.delete("project_management/project/info",  {data:{project:projectId}})
+}
+
+//项目管理的叶子节点
+//新增编辑数据集
+export function postNode(data){
+    return request.post("ai_evaluation/repository/info",data)
+}
+//删除数据集
+export function deleteNode(datasetId){
+    return request.delete("ai_evaluation/repository/info",{data:{dataset:datasetId}})
 }
 
 
-
-
-
-// 评测数据集
+// 评测数据集明细
 export function postDatasetItemList(data) {
     return request.post("ai_evaluation/dataset/list", data)
 }
@@ -58,8 +65,10 @@ export function deleteDatasetItemInfo(params) {
     return request.delete("ai_evaluation/dataset/info", params)
 }
 
-
-
+//获得数据集
+export function postDatasetList(data){
+    return request.post("ai_evaluation/repository/list",data)
+}
 // 文件 
 export function postFileUpdateList(data) {
     return request.post("ai_evaluation/file/list", data)
@@ -139,7 +148,7 @@ export function deleteEvaluationHistoryInfo(params) {
 
 //获得所有的叶子节点
 export function getAllLeafNode(data) {
-    return request.get("ai_evaluation/dataset/leaf", data)
+    return request.post("ai_evaluation/repository/list", data)
 }
 
 // 评估历史详情-已改
@@ -174,4 +183,27 @@ export function downloadDatasetFile (params) {
 //详情数据编辑
 export function postEvaluationHistoryDetailEdit(data) {
     return request.post("ai_evaluation/history/info", data)
+}
+
+//获取列表的数据集
+export function postEvaluationDatasetList(data) {
+    return request.get("ai_evaluation/dataset/names", data)
+}
+//获取列表的智能体
+export function postEvaluationAgentList(data) {
+    return request.get("ai_evaluation/agent/names", data)
+}
+//获取列表的评估对象
+export function postEvaluationEntityList(data) {
+    return request.get("ai_evaluation/entity/names", data)
+}
+
+//获取智能体的组别
+export function postEvaluationAgentGroupList(data) {
+    return request.get("ai_server/agent/brief_list", data)
+}
+
+//模板下载
+export function downloadTemplate(params) {
+    return request.get("ai_evaluation/excel/template/download", { params, responseType: 'blob' })
 }

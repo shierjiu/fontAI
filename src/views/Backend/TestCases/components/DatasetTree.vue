@@ -23,7 +23,7 @@
               <el-button size="mini" plain circle @click.stop="openDialog('add', data)">
                 <el-icon><Plus/></el-icon>
               </el-button>
-              <el-button size="mini" v-if="!data.isRoot" plain circle @click.stop="openDialog('edit', data)">
+              <el-button size="mini" plain circle @click.stop="openDialog('edit', data)">
                 <el-icon><EditPen/></el-icon>
               </el-button>
               <el-button size="mini" v-if="!data.isRoot" type="danger" plain circle @click.stop="confirmDeleteNode(data)">
@@ -54,7 +54,7 @@
 
 <script setup>
 //树的内容
-import { ref, onMounted } from 'vue'
+import { ref, onMounted,defineEmits } from 'vue'
 import { useRouter } from 'vue-router'
 import {postDatasetTreeList} from '@/api/AiEvaluation/index.js'
 import {ElNotification,ElMessageBox} from "element-plus"
@@ -68,7 +68,7 @@ const leafNodes = ref([])// 用于存储叶子节点
 const dialogVisible = ref(false)
 const dialogType = ref('add')
 const treeForm = ref({ id: null, name: '', parent_id: null })
-const emit = defineEmits(['updateLeafNodes'])// 定义事件以便父组件可以监听叶子节点更新
+const emit = defineEmits(['updateLeafNodes','node-click'])// 定义事件以便父组件可以监听叶子节点更新
 // 配置项：指定子节点字段为 'children'，展示名称为 'name'
 const defaultProps = {
     children: 'children',
@@ -77,7 +77,7 @@ const defaultProps = {
 // 点击树节点时执行：更新当前选中节点并跳转路由
 const handleNodeClick = (node) => {
   currentNodeKey.value = node.id
-  router.push({ name: 'nodeDetail', params: { nodeId: node.id } }) // 跳转至右侧内容路由
+  emit('node-click',node)
 }
 // 打开对话框，type = 'add' | 'edit', data = 当前节点
 function openDialog(type, data) {
@@ -139,11 +139,12 @@ async function loadTree() {
   treeData.value = [
     {
       id: 0,
-      name: '项目管理',
+      name: '根节点',
       isRoot: true,
       children: res.data.data.data || []  // 添加所有子节点
     }
   ]
+  console.log('tree',treeData.value)
   //leafNodes.value = getLeafNodes(children)
   const rawLeaves = getLeafNodes(children)
   leafNodes.value = rawLeaves.map(node => ({
